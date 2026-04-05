@@ -1,0 +1,31 @@
+# Реестр известных исключений (паттерн D: Known Exceptions Registry)
+# Сценарии, которые ВЫГЛЯДЯТ как ошибки, но таковыми не являются.
+# Обновлять по мере обнаружения quirks Max Bot API.
+
+max_api_quirks:
+  - id: MAX-001
+    description: "Max Bot API возвращает пустой sender для системных сообщений (вход/выход участника)"
+    affected: src/bot/webhook.py
+    action: "Игнорировать сообщения без sender.user_id"
+
+  - id: MAX-002
+    description: "callback_id может быть строкой или числом в зависимости от версии API"
+    affected: src/bot/webhook.py
+    action: "Приводить к строке: str(callback_id)"
+
+  - id: MAX-003
+    description: "Max API rate limit: 30 req/sec на бота. При превышении — HTTP 429"
+    affected: src/services/max_client.py
+    action: "Retry с экспоненциальным backoff (TODO: реализовать)"
+
+pydantic_known:
+  - id: PYD-001
+    description: "FAQMatch.score=100.0 — легитимно при точном совпадении вопроса"
+    affected: src/api/schemas.py
+    action: "Не считать ошибкой в аудите"
+
+db_known:
+  - id: DB-001
+    description: "message_logs таблица не имеет FK на users — намеренно (логируем до регистрации)"
+    affected: src/db/migrations/001_init.sql
+    action: "Не добавлять FK — пользователь может быть не зарегистрирован при первом сообщении"
