@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOM_MAX — Бот-диспетчер для УК в Max мессенджере | maxgkh.ru</title>
+<meta name="description" content="Умный бот-диспетчер для управляющих компаний в мессенджере Max. Соответствие ФЗ-529 и Приказу 856/пр. Подключите до 1 сентября 2026.">
+<meta name="keywords" content="ЖКХ бот, Max мессенджер, ФЗ-529, управляющая компания, домовой чат, бот диспетчер, ТСЖ">
+<meta property="og:title" content="DOM_MAX — Бот-диспетчер для УК в Max">
+<meta property="og:description" content="Автоматизируйте общение с жителями в обязательных домовых чатах Max. Соответствие ФЗ-529.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://maxgkh.ru">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>🏠</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ====== RESET & BASE ====== */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;font-size:16px}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#1a1a2e;line-height:1.6;background:#fff;overflow-x:hidden}
+img{max-width:100%;display:block}
+a{text-decoration:none;color:inherit}
+
+/* ====== VARIABLES ====== */
+:root{
+  --primary:#0057FF;
+  --primary-dark:#0044cc;
+  --accent:#00C853;
+  --accent-dark:#00a844;
+  --bg-dark:#0a0e27;
+  --bg-section:#f5f7fb;
+  --text:#1a1a2e;
+  --text-dim:#5a6178;
+  --radius:12px;
+  --shadow:0 4px 24px rgba(0,0,0,0.08);
+  --shadow-lg:0 8px 40px rgba(0,0,0,0.12);
+}
+
+/* ====== TYPOGRAPHY ====== */
+h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;line-height:1.15;letter-spacing:-0.5px}
+h2{font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:700;line-height:1.2;letter-spacing:-0.3px}
+h3{font-size:1.2rem;font-weight:600}
+p{font-size:1rem}
+
+/* ====== LAYOUT ====== */
+.container{max-width:1200px;margin:0 auto;padding:0 24px}
+section{padding:80px 0}
+
+/* ====== BUTTONS ====== */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:16px 32px;border-radius:50px;font-weight:600;font-size:1rem;cursor:pointer;border:none;transition:all .2s ease}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 4px 16px rgba(0,200,83,.3)}
+.btn-primary:hover{background:var(--accent-dark);transform:translateY(-2px);box-shadow:0 6px 24px rgba(0,200,83,.4)}
+.btn-outline{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.3)}
+.btn-outline:hover{border-color:#fff;background:rgba(255,255,255,.1)}
+.btn-dark{background:var(--primary);color:#fff;box-shadow:0 4px 16px rgba(0,87,255,.3)}
+.btn-dark:hover{background:var(--primary-dark);transform:translateY(-2px)}
+
+/* ====== NAV ====== */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:16px 0;transition:all .3s}
+.nav.scrolled{background:rgba(10,14,39,.95);backdrop-filter:blur(12px);padding:10px 0;box-shadow:0 2px 20px rgba(0,0,0,.2)}
+.nav .container{display:flex;align-items:center;justify-content:space-between}
+.nav-logo{font-weight:800;font-size:1.4rem;color:#fff;display:flex;align-items:center;gap:8px}
+.nav-logo span{color:var(--accent)}
+.nav-links{display:flex;gap:32px;align-items:center}
+.nav-links a{color:rgba(255,255,255,.7);font-size:.9rem;font-weight:500;transition:color .2s}
+.nav-links a:hover{color:#fff}
+.nav-cta{padding:10px 24px;font-size:.9rem}
+.nav-mobile{display:none;background:none;border:none;cursor:pointer}
+.nav-mobile svg{fill:#fff}
+
+/* ====== HERO ====== */
+.hero{background:var(--bg-dark);padding:140px 0 100px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-50%;right:-20%;width:800px;height:800px;border-radius:50%;background:radial-gradient(circle,rgba(0,87,255,.15) 0%,transparent 70%)}
+.hero::after{content:'';position:absolute;bottom:-30%;left:-10%;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(0,200,83,.1) 0%,transparent 70%)}
+.hero .container{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+.hero-content h1{color:#fff;margin-bottom:20px}
+.hero-content h1 em{font-style:normal;color:var(--accent)}
+.hero-subtitle{color:rgba(255,255,255,.7);font-size:1.15rem;margin-bottom:12px;line-height:1.7}
+.hero-deadline{display:inline-flex;align-items:center;gap:8px;background:rgba(255,59,48,.15);border:1px solid rgba(255,59,48,.3);color:#ff6b6b;padding:8px 16px;border-radius:8px;font-size:.9rem;font-weight:600;margin-bottom:28px}
+.hero-buttons{display:flex;gap:16px;flex-wrap:wrap}
+.hero-visual{display:flex;justify-content:center;align-items:center}
+.hero-mockup{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:24px;max-width:380px;width:100%}
+.chat-window{background:rgba(255,255,255,.03);border-radius:12px;padding:16px}
+.chat-msg{padding:10px 14px;border-radius:12px;font-size:.85rem;margin-bottom:8px;max-width:85%;line-height:1.5}
+.chat-msg.user{background:rgba(0,87,255,.2);color:rgba(255,255,255,.9);margin-left:auto;border-bottom-right-radius:4px}
+.chat-msg.bot{background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);border-bottom-left-radius:4px}
+.chat-msg .name{font-size:.7rem;font-weight:600;color:var(--accent);margin-bottom:4px}
+.chat-input{display:flex;gap:8px;margin-top:12px}
+.chat-input input{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px 14px;color:rgba(255,255,255,.5);font-size:.8rem}
+.chat-input button{background:var(--primary);border:none;border-radius:8px;padding:10px 14px;color:#fff;font-size:.8rem;cursor:pointer}
+
+/* ====== STATS BAR ====== */
+.stats{background:#fff;padding:0;position:relative;z-index:2;margin-top:-40px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-radius:16px;box-shadow:var(--shadow-lg);overflow:hidden}
+.stat-item{padding:32px 24px;text-align:center;border-right:1px solid #eee}
+.stat-item:last-child{border-right:none}
+.stat-num{font-size:2rem;font-weight:800;color:var(--primary);display:block}
+.stat-label{font-size:.85rem;color:var(--text-dim);margin-top:4px}
+
+/* ====== PROBLEM ====== */
+.problem{background:var(--bg-section)}
+.problem .container{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
+.problem-tag{display:inline-flex;align-items:center;gap:6px;background:#fff0f0;color:#e53935;padding:6px 14px;border-radius:6px;font-size:.8rem;font-weight:600;margin-bottom:16px}
+.problem h2{margin-bottom:16px}
+.problem-desc{color:var(--text-dim);margin-bottom:24px}
+.problem-list{list-style:none;display:flex;flex-direction:column;gap:12px}
+.problem-list li{display:flex;align-items:flex-start;gap:12px;font-size:.95rem;line-height:1.6}
+.problem-list li .icon{flex-shrink:0;width:24px;height:24px;background:#fee;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.75rem;margin-top:2px}
+.fine-card{background:#fff;border-radius:16px;padding:32px;box-shadow:var(--shadow);border-left:4px solid #e53935}
+.fine-card h3{color:#e53935;margin-bottom:12px;font-size:1.1rem}
+.fine-amount{font-size:2.5rem;font-weight:800;color:#e53935;margin-bottom:8px}
+.fine-card p{color:var(--text-dim);font-size:.9rem}
+.fine-card .law{font-weight:600;color:var(--text);margin-top:12px;font-size:.85rem}
+
+/* ====== FEATURES ====== */
+.features h2{text-align:center;margin-bottom:12px}
+.features .subtitle{text-align:center;color:var(--text-dim);max-width:600px;margin:0 auto 48px}
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.feature-card{background:#fff;border:1px solid #eef1f6;border-radius:var(--radius);padding:28px;transition:all .25s}
+.feature-card:hover{border-color:var(--primary);box-shadow:var(--shadow);transform:translateY(-4px)}
+.feature-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:16px}
+.feature-card h3{margin-bottom:8px}
+.feature-card p{color:var(--text-dim);font-size:.9rem;line-height:1.6}
+.fi-blue{background:rgba(0,87,255,.08)}
+.fi-green{background:rgba(0,200,83,.08)}
+.fi-orange{background:rgba(255,152,0,.08)}
+.fi-red{background:rgba(229,57,53,.08)}
+.fi-purple{background:rgba(103,58,183,.08)}
+.fi-teal{background:rgba(0,150,136,.08)}
+
+/* ====== HOW IT WORKS ====== */
+.how{background:var(--bg-section)}
+.how h2{text-align:center;margin-bottom:48px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;position:relative}
+.steps::before{content:'';position:absolute;top:40px;left:calc(16.66% + 24px);right:calc(16.66% + 24px);height:2px;background:linear-gradient(90deg,var(--primary),var(--accent))}
+.step{text-align:center;position:relative}
+.step-num{width:80px;height:80px;border-radius:50%;background:var(--primary);color:#fff;font-size:1.8rem;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;position:relative;z-index:1;box-shadow:0 4px 16px rgba(0,87,255,.3)}
+.step h3{margin-bottom:8px}
+.step p{color:var(--text-dim);font-size:.9rem;line-height:1.6}
+
+/* ====== COMPLIANCE ====== */
+.compliance .container{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start}
+.compliance-tag{display:inline-flex;align-items:center;gap:6px;background:rgba(0,87,255,.08);color:var(--primary);padding:6px 14px;border-radius:6px;font-size:.8rem;font-weight:600;margin-bottom:16px}
+.compliance h2{margin-bottom:16px}
+.compliance-desc{color:var(--text-dim);margin-bottom:24px}
+.check-list{list-style:none;display:flex;flex-direction:column;gap:14px}
+.check-list li{display:flex;align-items:flex-start;gap:12px;font-size:.95rem;line-height:1.5}
+.check-list li .check{flex-shrink:0;width:24px;height:24px;background:rgba(0,200,83,.1);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:.8rem;font-weight:700;margin-top:1px}
+.compliance-cards{display:flex;flex-direction:column;gap:16px}
+.law-card{background:var(--bg-section);border-radius:var(--radius);padding:24px;border-left:3px solid var(--primary)}
+.law-card h4{font-size:1rem;margin-bottom:6px;color:var(--primary)}
+.law-card p{font-size:.9rem;color:var(--text-dim);line-height:1.6}
+
+/* ====== PRICING ====== */
+.pricing{background:var(--bg-section)}
+.pricing h2{text-align:center;margin-bottom:12px}
+.pricing .subtitle{text-align:center;color:var(--text-dim);max-width:600px;margin:0 auto 48px}
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.price-card{background:#fff;border-radius:16px;padding:32px;border:2px solid #eef1f6;transition:all .25s;position:relative;overflow:hidden}
+.price-card.popular{border-color:var(--primary);box-shadow:var(--shadow-lg)}
+.price-badge{position:absolute;top:16px;right:-32px;background:var(--primary);color:#fff;font-size:.7rem;font-weight:700;padding:4px 40px;transform:rotate(45deg);text-transform:uppercase}
+.price-name{font-size:1.1rem;font-weight:700;margin-bottom:4px}
+.price-desc{font-size:.85rem;color:var(--text-dim);margin-bottom:20px}
+.price-amount{font-size:2.5rem;font-weight:800;color:var(--text)}
+.price-amount span{font-size:1rem;font-weight:500;color:var(--text-dim)}
+.price-period{font-size:.85rem;color:var(--text-dim);margin-bottom:24px}
+.price-features{list-style:none;margin-bottom:28px;display:flex;flex-direction:column;gap:10px}
+.price-features li{display:flex;align-items:center;gap:8px;font-size:.9rem}
+.price-features li::before{content:'✓';color:var(--accent);font-weight:700;font-size:.8rem}
+.price-card .btn{width:100%;justify-content:center}
+
+/* ====== CTA ====== */
+.cta{background:var(--bg-dark);text-align:center;padding:80px 0}
+.cta h2{color:#fff;margin-bottom:16px}
+.cta p{color:rgba(255,255,255,.6);max-width:550px;margin:0 auto 32px;font-size:1.1rem}
+.cta-buttons{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+
+/* ====== FOOTER ====== */
+.footer{background:var(--bg-dark);border-top:1px solid rgba(255,255,255,.06);padding:40px 0;color:rgba(255,255,255,.4);font-size:.85rem}
+.footer .container{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+.footer-links{display:flex;gap:24px}
+.footer-links a{color:rgba(255,255,255,.4);transition:color .2s}
+.footer-links a:hover{color:#fff}
+
+/* ====== RESPONSIVE ====== */
+@media(max-width:900px){
+  .hero .container{grid-template-columns:1fr}
+  .hero-visual{display:none}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .stat-item:nth-child(2){border-right:none}
+  .problem .container,.compliance .container{grid-template-columns:1fr}
+  .features-grid{grid-template-columns:1fr 1fr}
+  .steps{grid-template-columns:1fr;gap:40px}
+  .steps::before{display:none}
+  .pricing-grid{grid-template-columns:1fr}
+  .price-card.popular{order:-1}
+}
+@media(max-width:600px){
+  section{padding:56px 0}
+  .features-grid{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:1fr}
+  .stat-item{border-right:none;border-bottom:1px solid #eee}
+  .stat-item:last-child{border-bottom:none}
+  .nav-links{display:none}
+  .nav-mobile{display:block}
+  .hero{padding:120px 0 80px}
+  .hero-buttons{flex-direction:column}
+  .hero-buttons .btn{width:100%;justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== NAV ===== -->
+<nav class="nav" id="nav">
+  <div class="container">
+    <a href="#" class="nav-logo">🏠 DOM<span>_MAX</span></a>
+    <div class="nav-links">
+      <a href="#features">Возможности</a>
+      <a href="#compliance">Соответствие ФЗ</a>
+      <a href="#pricing">Тарифы</a>
+      <a href="#cta" class="btn btn-primary nav-cta">Подключить</a>
+    </div>
+    <button class="nav-mobile" onclick="document.querySelector('.nav-links').classList.toggle('show')">
+      <svg width="24" height="24" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke="#fff" stroke-width="2" fill="none"/></svg>
+    </button>
+  </div>
+</nav>
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-deadline">⏰ Дедлайн: 1 сентября 2026</div>
+      <h1>Бот-диспетчер для УК<br>в <em>Max мессенджере</em></h1>
+      <p class="hero-subtitle">DOM_MAX автоматизирует общение с жителями в обязательных домовых чатах. Диспетчерская, заявки, уведомления — всё в одном боте. Соответствие ФЗ-529 «из коробки».</p>
+      <div class="hero-buttons">
+        <a href="#cta" class="btn btn-primary">Подключить бесплатно →</a>
+        <a href="#features" class="btn btn-outline">Узнать больше</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-mockup">
+        <div style="text-align:center;color:rgba(255,255,255,.5);font-size:.75rem;margin-bottom:12px;font-weight:600">MAX мессенджер — Домовой чат</div>
+        <div class="chat-window">
+          <div class="chat-msg user">
+            <div class="name">Иванова А.П.</div>
+            Когда включат горячую воду?
+          </div>
+          <div class="chat-msg bot">
+            <div class="name">🏠 DOM_MAX</div>
+            Плановое отключение горячей воды до 18:00 сегодня. Причина: замена запорной арматуры на вводе. Подробнее → /status
+          </div>
+          <div class="chat-msg user">
+            <div class="name">Петров С.В.</div>
+            /ticket Течёт кран в подъезде, 3 этаж
+          </div>
+          <div class="chat-msg bot">
+            <div class="name">🏠 DOM_MAX</div>
+            ✅ Заявка #147 создана! Передана диспетчеру. Проверить статус: /status
+          </div>
+          <div class="chat-input">
+            <input type="text" placeholder="Напишите вопрос..." disabled>
+            <button disabled>→</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== STATS ===== -->
+<section class="stats">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-item">
+        <span class="stat-num">70%</span>
+        <span class="stat-label">вопросов решает бот автоматически</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-num">1–3 мин</span>
+        <span class="stat-label">среднее время ответа вместо 30–60 мин</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-num">24/7</span>
+        <span class="stat-label">диспетчерская без выходных</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-num">539 000+</span>
+        <span class="stat-label">домовых чатов уже в Max</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PROBLEM ===== -->
+<section class="problem" id="problem">
+  <div class="container">
+    <div>
+      <div class="problem-tag">⚠️ Проблема</div>
+      <h2>Что будет, если не подключить<br>домовой чат к 1 сентября?</h2>
+      <p class="problem-desc">ФЗ-529 обязывает каждую управляющую компанию вести домовой чат в мессенджере Max. Приказ Минстроя 856/пр конкретизирует требования.</p>
+      <ul class="problem-list">
+        <li><span class="icon">❌</span> Жалобы жителей уходят в Госжилинспекцию</li>
+        <li><span class="icon">❌</span> Внеплановые проверки и предписания</li>
+        <li><span class="icon">❌</span> Штрафы за отсутствие обязательного канала связи</li>
+        <li><span class="icon">❌</span> Потеря заявок и обращений без системы учёта</li>
+        <li><span class="icon">❌</span> Диспетчер тонет в однотипных вопросах</li>
+      </ul>
+    </div>
+    <div>
+      <div class="fine-card">
+        <h3>Штраф за несоблюдение ФЗ-529</h3>
+        <div class="fine-amount">до 300 000 ₽</div>
+        <p>Штраф за нарушение правил управления многоквартирным домом при отсутствии обязательного канала связи с жителями.</p>
+        <div class="law">ФЗ-529 от 29.12.2025 + Приказ Минстроя 856/пр</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FEATURES ===== -->
+<section class="features" id="features">
+  <div class="container">
+    <h2>Что умеет DOM_MAX</h2>
+    <p class="subtitle">Все функции, которые нужны УК для работы в обязательном домовом чате Max</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon fi-blue">💬</div>
+        <h3>Умная диспетчерская</h3>
+        <p>Автоматические ответы на типовые вопросы жителей. База знаний с нечётким поиском — бот понимает вопрос, даже если написан с ошибками.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-green">📋</div>
+        <h3>Система заявок</h3>
+        <p>Жители создают заявки прямо в чате с фото. Автоматическая маршрутизация в УК, отслеживание статусов, история обращений.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-red">🚨</div>
+        <h3>Уведомления 856/пр</h3>
+        <p>Экстренные оповещения об авариях, плановых работах и собраниях. Формат соответствует Приказу Минстроя 856/пр.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-orange">🛡️</div>
+        <h3>Модерация чата</h3>
+        <p>Антиспам, фильтр мата, стоп-слова. Бот поддерживает порядок в чате 24/7, чтобы диспетчер занимался делом.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-purple">📊</div>
+        <h3>Аналитика</h3>
+        <p>Статистика обращений, популярные вопросы, время ответа. Понимайте, что волнует жителей, и улучшайте сервис.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-teal">⚡</div>
+        <h3>Быстрый старт</h3>
+        <p>Подключение за 15 минут. Добавьте бота в домовой чат, загрузите базу знаний — и он начнёт работать.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== HOW IT WORKS ===== -->
+<section class="how" id="how">
+  <div class="container">
+    <h2>Как подключить DOM_MAX</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Регистрация</h3>
+        <p>Оставьте заявку — мы создадим бота для вашей УК и настроим базу знаний под ваши ответы.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Добавьте в чат</h3>
+        <p>Добавьте бота в обязательный домовой чат Max. Он сразу начнёт отвечать на вопросы жителей.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Управляйте</h3>
+        <p>Контролируйте заявки, рассылайте уведомления и следите за аналитикой через панель управления.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== COMPLIANCE ===== -->
+<section class="compliance" id="compliance">
+  <div class="container">
+    <div>
+      <div class="compliance-tag">⚖️ Соответствие законодательству</div>
+      <h2>Полное соответствие ФЗ-529<br>и Приказу 856/пр</h2>
+      <p class="compliance-desc">DOM_MAX — единственный бот, спроектированный специально под требования нового законодательства о домовых чатах.</p>
+      <ul class="check-list">
+        <li><span class="check">✓</span> Работает в мессенджере Max (обязательная платформа по ФЗ-529)</li>
+        <li><span class="check">✓</span> Диспетчерская информация в формате Приказа 856/пр</li>
+        <li><span class="check">✓</span> Уведомления об авариях и плановых работах по стандарту</li>
+        <li><span class="check">✓</span> Приём и учёт заявок с фиксацией времени</li>
+        <li><span class="check">✓</span> Контактные данные УК в описании чата</li>
+        <li><span class="check">✓</span> Серверы в РФ (152-ФЗ: персональные данные)</li>
+        <li><span class="check">✓</span> Лог всех обращений для проверяющих органов</li>
+      </ul>
+    </div>
+    <div class="compliance-cards">
+      <div class="law-card">
+        <h4>ФЗ-529 от 29.12.2025</h4>
+        <p>Обязывает УК, ТСЖ и ТСН вести домовые чаты в мессенджере Max для связи с жителями. Дедлайн — 1 сентября 2026 года.</p>
+      </div>
+      <div class="law-card">
+        <h4>Приказ Минстроя 856/пр</h4>
+        <p>Определяет формат размещения диспетчерской информации: контакты аварийных служб, графики плановых работ, протоколы собраний.</p>
+      </div>
+      <div class="law-card">
+        <h4>152-ФЗ о персональных данных</h4>
+        <p>Все данные жителей хранятся на серверах в Российской Федерации. Обработка ПДн в соответствии с законодательством.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PRICING ===== -->
+<section class="pricing" id="pricing">
+  <div class="container">
+    <h2>Тарифы</h2>
+    <p class="subtitle">Прозрачное ценообразование. Первый месяц — бесплатно для всех тарифов.</p>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <div class="price-name">ТСЖ</div>
+        <div class="price-desc">Для товариществ до 200 квартир</div>
+        <div class="price-amount">990 <span>₽/мес</span></div>
+        <div class="price-period">1 дом, 1 чат</div>
+        <ul class="price-features">
+          <li>Диспетчерская / FAQ</li>
+          <li>Система заявок с фото</li>
+          <li>Уведомления жителям</li>
+          <li>Модерация чата</li>
+          <li>Базовая аналитика</li>
+        </ul>
+        <a href="#cta" class="btn btn-dark">Попробовать бесплатно</a>
+      </div>
+      <div class="price-card popular">
+        <div class="price-badge">Популярный</div>
+        <div class="price-name">УК Стандарт</div>
+        <div class="price-desc">Для управляющих компаний до 25 домов</div>
+        <div class="price-amount">3 900 <span>₽/мес</span></div>
+        <div class="price-period">до 25 домов</div>
+        <ul class="price-features">
+          <li>Всё из тарифа ТСЖ</li>
+          <li>Панель управления УК</li>
+          <li>Массовые рассылки</li>
+          <li>Расширенная аналитика</li>
+          <li>Приоритетная поддержка</li>
+          <li>Настройка базы знаний</li>
+        </ul>
+        <a href="#cta" class="btn btn-primary">Подключить</a>
+      </div>
+      <div class="price-card">
+        <div class="price-name">УК Макси</div>
+        <div class="price-desc">Для крупных УК от 25 домов</div>
+        <div class="price-amount">5 900 <span>₽/мес</span></div>
+        <div class="price-period">безлимит домов</div>
+        <ul class="price-features">
+          <li>Всё из УК Стандарт</li>
+          <li>Безлимитные дома</li>
+          <li>API-интеграция (1С, GIS ЖКХ)</li>
+          <li>Выделенный менеджер</li>
+          <li>SLA 99.9%</li>
+          <li>Кастомная настройка</li>
+        </ul>
+        <a href="#cta" class="btn btn-dark">Обсудить</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CTA ===== -->
+<section class="cta" id="cta">
+  <div class="container">
+    <h2>Подключите DOM_MAX до 1 сентября</h2>
+    <p>Первый месяц бесплатно. Настройка за 15 минут. Помощь с подключением к обязательному домовому чату Max.</p>
+    <div class="cta-buttons">
+      <a href="https://t.me/maxgkh" class="btn btn-primary" target="_blank">Написать в Telegram →</a>
+      <a href="tel:+79001234567" class="btn btn-outline">Позвонить</a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="container">
+    <div>© 2026 DOM_MAX — maxgkh.ru. Бот-диспетчер для УК в Max.</div>
+    <div class="footer-links">
+      <a href="#">Политика конфиденциальности</a>
+      <a href="#">Оферта</a>
+      <a href="mailto:info@maxgkh.ru">info@maxgkh.ru</a>
+    </div>
+  </div>
+</footer>
+
+<!-- ===== SCROLL NAV ===== -->
+<script>
+window.addEventListener('scroll',()=>{
+  document.getElementById('nav').classList.toggle('scrolled',window.scrollY>50)
+});
+document.querySelectorAll('a[href^="#"]').forEach(a=>{
+  a.addEventListener('click',e=>{
+    e.preventDefault();
+    const t=document.querySelector(a.getAttribute('href'));
+    if(t)t.scrollIntoView({behavior:'smooth',block:'start'});
+  });
+});
+</script>
+
+</body>
+</html>
