@@ -1,22 +1,17 @@
-"""DOM_MAX — Бот-диспетчер для УК в домовых чатах Max.
+"""DOM_MAX — Бот-диспетчер для УК в домовых чатах Max."""
 
-Точка входа: uvicorn src.main:app --reload
-"""
-
-import asyncio
 import logging
 from contextlib import asynccontextmanager
 
 import asyncpg
 import redis.asyncio as aioredis
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from src.config import settings
+from src.logging_config import configure_logging
 
 logger = logging.getLogger("dom_max")
-
-
-# --- Глобальные ресурсы (инициализируются в lifespan) ---
 
 db_pool: asyncpg.Pool | None = None
 redis_client: aioredis.Redis | None = None
@@ -24,14 +19,9 @@ redis_client: aioredis.Redis | None = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Инициализация и очистка ресурсов."""
     global db_pool, redis_client
 
-    # --- Startup ---
-    logging.basicConfig(
-        level=logging.DEBUG if settings.debug else logging.INFO,
-        format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-    )
+    configure_logging(debug=settings.debug)
     logger.info("Starting DOM_MAX...")
 
     db_pool = await asyncpg.create_pool(
@@ -45,15 +35,12 @@ async def lifespan(app: FastAPI):
     )
     logger.info("PostgreSQL pool ready")
 
-    redis_client = aioredis.from_url(
-        settings.redis_url, decode_responses=True,
-    )
+    redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
     await redis_client.ping()
     logger.info("Redis connected")
 
     yield
 
-    # --- Shutdown ---
     logger.info("Shutting down DOM_MAX...")
     if redis_client:
         await redis_client.aclose()
@@ -65,15 +52,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="DOM_MAX",
     description="Бот-диспетчер для УК в домовых чатах Max",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
 
-# --- Health check ---
-
 @app.get("/health")
-async def health():
+async def health() -> JSONResponse:
     """L4: health check для мониторинга."""
     checks = {"app": "ok", "db": "error", "redis": "error"}
     try:
@@ -90,31 +75,35 @@ async def health():
         logger.error("Redis health check failed: %s", e)
 
     healthy = all(v == "ok" for v in checks.values())
-    return Response(
-        content='{"status":"ok"}' if healthy else '{"status":"degraded","checks":' + str(checks).replace("'", '"') + '}',
+    return JSONResponse(
+        content={"status": "ok"} if healthy else {"status": "degraded", "checks": checks},
         status_code=200 if healthy else 503,
-        media_type="application/json",
     )
 
 
-# --- Max Bot Webhook ---
-
 @app.post("/webhook")
-async def webhook(request: Request):
-    """Принимает входящие события от Max Bot API."""
+async def webhook(
+    request: Request,
+    x_max_bot_api_secret: str | None = Header(default=None, alias="X-Max-Bot-Api-Secret"),
+) -> JSONResponse:
+    """Принимает события от Max Bot API. Верифицирует X-Max-Bot-Api-Secret."""
     from src.bot.webhook import handle_update
+
+    expected = settings.webhook_secret
+    if expected:
+        if not x_max_bot_api_secret or x_max_bot_api_secret != expected:
+            logger.warning(
+                "Webhook signature mismatch from %s",
+                request.client.host if request.client else "?",
+            )
+            raise HTTPException(status_code=401, detail="invalid signature")
 
     payload = await request.json()
     logger.debug("Webhook payload: %s", payload)
 
     try:
         result = await handle_update(payload, db_pool, redis_client)
-        return {"ok": True, "result": result}
+        return JSONResponse({"ok": True, "result": result})
     except Exception:
         logger.exception("Webhook handler error")
-        return {"ok": False}
-
-
-# --- REST API для Mini App (Stage 3) ---
-# from src.api.routes import router as api_router
-# app.include_router(api_router, prefix="/api/v1")
+        return JSONResponse({"ok": False}, status_code=200)
