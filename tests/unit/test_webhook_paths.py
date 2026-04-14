@@ -4,7 +4,7 @@
 Каждый тест = один пользовательский путь через систему.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -182,8 +182,8 @@ class TestStressScenarios:
     """Граничные случаи и стресс-тесты."""
 
     def test_very_long_text_truncated(self):
-        """Текст длиннее MAX_TEXT_LENGTH обрезается в webhook."""
-        assert MAX_TEXT_LENGTH == 5000
+        """Текст длиннее MAX_TEXT_LENGTH обрезается в webhook (лимит Max API — 4000)."""
+        assert MAX_TEXT_LENGTH == 4000
 
     def test_unicode_normalization(self):
         """Юникод нормализуется в NFC."""
