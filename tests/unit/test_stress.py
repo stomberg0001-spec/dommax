@@ -12,16 +12,12 @@ from src.api.schemas import (
     FAQItem,
     FAQMatch,
     House,
-    MessageLog,
     MessageType,
-    Notification,
     NotificationCreate,
     NotificationType,
-    Ticket,
     TicketCreate,
     TicketStatus,
     UKProfile,
-    User,
 )
 from src.bot.webhook import _extract_photo, _safe_get
 

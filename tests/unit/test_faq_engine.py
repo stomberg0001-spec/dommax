@@ -1,6 +1,5 @@
 """Unit-тесты FAQ Engine — проверяют логику нечёткого поиска (L1 vs L0)."""
 
-import pytest
 
 from src.bot.faq_engine import (
     HIGH_CONFIDENCE,
@@ -34,8 +33,9 @@ class TestFormatFaqResponse:
     def test_threshold_boundary(self):
         match = self._make_match(HIGH_CONFIDENCE, answer="Exact")
         result = format_faq_response(match)
-        # Ровно HIGH_CONFIDENCE — не высокая уверенность, показываем уточнение
-        assert "Возможно" in result
+        # Ровно HIGH_CONFIDENCE — уже высокая уверенность (score >= HIGH_CONFIDENCE):
+        # возвращаем ответ без уточнения
+        assert result == "Exact"
 
 
 class TestConstants:
