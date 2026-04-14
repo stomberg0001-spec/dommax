@@ -1,15 +1,13 @@
-"""Rate limiter на Redis — атомарный через Lua-скрипт.
-
-Защита от спама и DDoS на уровне пользователя.
-"""
+"""Rate limiter на Redis — атомарный через Lua-скрипт."""
 
 import logging
 
 import redis.asyncio as aioredis
 
+from src.config import settings
+
 logger = logging.getLogger("dom_max.rate_limiter")
 
-# Lua-скрипт: атомарный incr + expire (без race condition)
 _RATE_LIMIT_SCRIPT = """
 local current = redis.call('incr', KEYS[1])
 if current == 1 then
@@ -26,23 +24,17 @@ async def check_rate_limit(
     limit: int = 10,
     window: int = 60,
 ) -> bool:
-    """Проверить rate limit пользователя (атомарная операция).
-
-    Args:
-        user_id: ID пользователя в Max
-        limit: максимум запросов за окно
-        window: размер окна в секундах
-
-    Returns:
-        True — разрешено, False — превышен лимит.
-    """
+    """Проверить rate limit. По умолчанию fail-closed (Redis недоступен → отказ)."""
     key = f"rl:{user_id}"
 
     try:
         count = await redis.eval(_RATE_LIMIT_SCRIPT, 1, key, str(window))
     except aioredis.RedisError:
-        logger.exception("Redis error in rate limiter, allowing request")
-        return True  # Fail-open: при ошибке Redis — пропускаем
+        logger.error(
+            "Redis error in rate limiter — fail_open=%s",
+            settings.rate_limiter_fail_open,
+        )
+        return settings.rate_limiter_fail_open
 
     if count > limit:
         logger.warning("Rate limit exceeded: user_id=%d count=%d", user_id, count)
